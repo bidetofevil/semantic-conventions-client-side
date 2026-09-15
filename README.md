@@ -24,7 +24,7 @@ Slack channel or attend the [Client Instrumentation SIG meeting](https://github.
 ## Maintainers
 
 - [Hanson Ho](https://github.com/bidetofevil), Embrace (Palo Alto Networks)
-- [Martin Kuba](https://github.com/martinkuba), Grafana
 - [Jared Freeze](https://github.com/overbalance), Embrace (Palo Alto Networks)
+- [Martin Kuba](https://github.com/martinkuba), Grafana
 
 For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
