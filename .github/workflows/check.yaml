@@ -1,0 +1,70 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Read pinned weaver version
+        id: weaver
+        run: |
+          source versions.env
+          echo "version=$WEAVER_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Weaver
+        uses: ./.github/actions/setup-weaver
+        with:
+          version: ${{ steps.weaver.outputs.version }}
+
+      - name: Validate registry (schema + shared policies)
+        run: scripts/check.sh
+
+  policies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Read pinned OPA version
+        id: opa
+        run: |
+          source versions.env
+          echo "version=$OPA_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install OPA
+        uses: ./.github/actions/setup-opa
+        with:
+          version: ${{ steps.opa.outputs.version }}
+
+      - name: Unit-test rego policies
+        run: scripts/test-policies.sh
+
+  required-status-check:
+    if: always()
+    needs:
+      - check
+      - policies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any dependency did not pass
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1
