@@ -35,6 +35,60 @@ jobs:
       - name: Validate registry (schema + shared policies)
         run: scripts/check.sh
 
+  docs-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Read pinned weaver version
+        id: weaver
+        run: |
+          source versions.env
+          echo "version=$WEAVER_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Weaver
+        uses: ./.github/actions/setup-weaver
+        with:
+          version: ${{ steps.weaver.outputs.version }}
+
+      - name: Regenerate docs
+        run: scripts/generate-docs.sh
+
+      - name: Check committed docs are in sync
+        uses: ./.github/actions/assert-no-drift
+        with:
+          path: docs
+          label: docs
+          regenerate-hint: |
+            make install-weaver   # once, if weaver is not on PATH
+            make generate-all
+            git add docs/
+
+  templates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Read pinned weaver version
+        id: weaver
+        run: |
+          source versions.env
+          echo "version=$WEAVER_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Weaver
+        uses: ./.github/actions/setup-weaver
+        with:
+          version: ${{ steps.weaver.outputs.version }}
+
+      - name: Check doc templates against golden fixture output
+        run: scripts/test-templates.sh
+
   policies:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -61,6 +115,8 @@ jobs:
     if: always()
     needs:
       - check
+      - docs-drift
+      - templates
       - policies
     runs-on: ubuntu-latest
     timeout-minutes: 5

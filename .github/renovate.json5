@@ -13,7 +13,10 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/^versions\\.env$/",
-        "/^model/manifest\\.yaml$/"
+        "/^model/manifest\\.yaml$/",
+        // The test fixture pins the same dependency, and the packageRule below keeps
+        // them in lockstep with model/manifest.yaml in a single PR.
+        "/^templates_test/fixture/manifest\\.yaml$/"
       ],
       "matchStrings": [
         // versions.env: WEAVER_VERSION=vX.Y.Z
