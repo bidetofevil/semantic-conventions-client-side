@@ -14,6 +14,15 @@ version-stamped schema URLs representing the public-facing surface of the manife
 but it does not generate or publish language-specific binaries that make the hosted
 conventions consumable in instrumentation.
 
+## Structure
+
+Semantic conventions owned by this registry are defined in YAML files under `/model`.
+Using templates defined in `/templates`, Weaver-based tooling will crawl through all
+the files in that directory and create the appropriate documentation in `/docs`.
+
+The conventions by which the files and directories within `/model` are organized is
+under discussion.
+
 ## Roadmap
 
 We are still in the process of bootstrapping this repo. More details about the roadmap
