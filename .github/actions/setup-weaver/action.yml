@@ -19,4 +19,3 @@ runs:
       run: |
         install_dir="${HOME}/.local/bin"
         bash "${ACTION_PATH}/install-weaver.sh" "${install_dir}"
-        echo "${install_dir}" >> "${GITHUB_PATH}"
