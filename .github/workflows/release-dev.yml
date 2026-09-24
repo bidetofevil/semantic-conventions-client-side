@@ -11,6 +11,12 @@ name: Release (dev)
 on:
   workflow_dispatch:
 
+# Only one release may be in flight at a time. Don't allow cancellation, which
+# could lead to broken/abandoned artifacts.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -19,6 +25,8 @@ jobs:
     name: Publish Dev Release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # write permission is needed to attach the publication artifacts to the draft
+    # release, create the tag, and publish the release.
     permissions:
       contents: write
     steps:
