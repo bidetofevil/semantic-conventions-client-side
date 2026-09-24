@@ -9,7 +9,7 @@ include versions.env
 # Manifests whose dependencies check-policies verifies for schema_url/registry_path agreement.
 MANIFESTS := model/manifest.yaml templates_test/fixture/manifest.yaml
 
-.PHONY: all check-policies generate-docs generate-all test test-templates test-policies \
+.PHONY: all check-policies generate-docs generate-all package test test-templates test-policies \
 	update-golden install-weaver install-opa check-weaver check-opa clean help
 
 # Default: validate, then regenerate everything this repo owns.
@@ -58,6 +58,25 @@ generate-docs: check-weaver
 
 # Every regeneration this repo owns. CI checks that committed output matches this.
 generate-all: generate-docs
+
+# Produce the publication manifest and resolved registry under .build/package/. The version is the
+# last segment of the schema_url in model/manifest.yaml, and the resolved-registry URI baked into
+# the artifacts points at that version's GitHub release, which is where consumers fetch it from.
+package: check-weaver
+	@set -eu; \
+	version="$$(awk '/^schema_url:/ { n = split($$2, parts, "/"); print parts[n]; exit }' model/manifest.yaml)"; \
+	repo_url="$$(git remote get-url origin)"; \
+	repo_url="$${repo_url%.git}"; \
+	case "$$repo_url" in \
+	  git@github.com:*) repo_url="https://github.com/$${repo_url#git@github.com:}" ;; \
+	esac; \
+	rm -rf .build/package; \
+	weaver registry package \
+	  -r model \
+	  --v2 \
+	  --resolved-registry-uri "$$repo_url/releases/download/v$$version/resolved.yaml" \
+	  -o .build/package; \
+	echo "packaged version $$version -> .build/package"
 
 # Every test suite this repo owns. Used locally only, as CI runs these as separate jobs.
 test: test-templates test-policies
@@ -142,6 +161,7 @@ help:
 	@echo "check-policies  validate the model (schema + dependencies + policies)"
 	@echo "generate-docs   regenerate committed markdown under docs/"
 	@echo "generate-all    run every regeneration this repo owns"
+	@echo "package         produce the publication artifacts under .build/package/"
 	@echo "test            run every test suite (templates + policies)"
 	@echo "test-templates  check the doc templates against the golden fixture output"
 	@echo "test-policies   unit-test the local rego policies"
