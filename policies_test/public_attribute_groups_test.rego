@@ -32,7 +32,7 @@ local_group(keys) := {
 imported_group(keys) := {
 	"id": "registry.session",
 	"provenance": {
-		"path": "https://github.com/open-telemetry/semantic-conventions.git@v1.44.0[model]/session.yaml",
+		"path": "https://github.com/open-telemetry/semantic-conventions@v1.44.0[model]/session.yaml",
 		"source": "https://opentelemetry.io/schemas/1.44.0",
 	},
 	"attributes": [{"key": key} | some key in keys],

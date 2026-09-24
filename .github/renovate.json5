@@ -28,7 +28,8 @@
         // model/manifest.yaml: the dependency's declared schema_url version
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\s+- schema_url: https://opentelemetry\\.io/schemas/(?<currentValue>\\d+\\.\\d+\\.\\d+)",
         // model/manifest.yaml: the same dependency's pinned git tag
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\s+- schema_url: \\S+\\s+registry_path:.*?\\.git@(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\[model\\]"
+        // the .git suffix on the clone URL is optional and we don't use it in the filter
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\s+- schema_url: \\S+\\s+registry_path:.*?@(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\[model\\]"
       ]
     }
   ],
