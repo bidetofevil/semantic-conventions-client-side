@@ -5,3 +5,15 @@
 Reference documentation generated from the semantic convention definitions under
 `model/`. Only conventions defined by this registry are listed. Attributes defined
 in registries it depends on are documented in those respective repos.
+
+## Attribute groups
+
+- [Attribute groups](attribute-groups.md) — 1 group
+
+## Attributes
+
+- [`app`](attributes/app.md) — 3 attributes
+
+## Events
+
+- [`app`](events/app.md) — 1 event
