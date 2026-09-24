@@ -55,7 +55,10 @@
     },
     {
       // The manifest's schema_url and its registry_path git tag name the same
-      // upstream release and MUST move together, or resolution breaks.
+      // upstream release and MUST move together. Weaver does not fail when they
+      // disagree: it resolves to whatever registry_path actually fetches and at
+      // most warns, so the manifest can ask for one version and get another.
+      // `make check-policies` turns that into a hard error.
       "description": "Bump the upstream manifest git tag and its adjacent schema_url together",
       "matchDepNames": [
         "open-telemetry/semantic-conventions"

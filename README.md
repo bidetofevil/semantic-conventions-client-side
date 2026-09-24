@@ -23,6 +23,12 @@ the files in that directory and create the appropriate documentation in `/docs`.
 The conventions by which the files and directories within `/model` are organized is
 under discussion.
 
+The registry's identity and its version both come from the `schema_url` in
+`/model/manifest.yaml`: everything before the last `/` names the registry and the last
+segment is its version. Only that last segment ever moves. Changing any part before it
+does not produce a new version of this registry, it produces a different registry, and
+consumers pinning the old one never see the change.
+
 ## Roadmap
 
 We are still in the process of bootstrapping this repo. More details about the roadmap

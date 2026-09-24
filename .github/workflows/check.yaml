@@ -34,7 +34,7 @@ jobs:
           version: ${{ steps.weaver.outputs.version }}
 
       - name: Validate registry (schema + shared policies)
-        run: scripts/check.sh
+        run: make check-policies
 
   docs-drift:
     name: Check Docs Drift
@@ -57,7 +57,7 @@ jobs:
           version: ${{ steps.weaver.outputs.version }}
 
       - name: Regenerate docs
-        run: scripts/generate-docs.sh
+        run: make generate-all
 
       - name: Check committed docs are in sync
         uses: ./.github/actions/assert-no-drift
@@ -90,7 +90,7 @@ jobs:
           version: ${{ steps.weaver.outputs.version }}
 
       - name: Check doc templates against golden fixture output
-        run: scripts/test-templates.sh
+        run: make test-templates
 
   policies:
     name: Check Policies
@@ -113,7 +113,7 @@ jobs:
           version: ${{ steps.opa.outputs.version }}
 
       - name: Unit-test rego policies
-        run: scripts/test-policies.sh
+        run: make test-policies
 
   required-status-check:
     name: Run All Checks
