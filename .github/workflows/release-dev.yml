@@ -1,0 +1,153 @@
+name: Release (dev)
+
+# Publishes a draft release that a maintainer has already prepared, attaching the
+# OTEP 4815 publication artifacts. See RELEASING.md.
+#
+# The draft is the human gate: the workflow never invents a release, it only fills
+# one in and publishes it. The version is never passed in either -- it is read from
+# the schema_url in model/manifest.yaml, which is the single source of truth for
+# this registry's identity and version. It releases only from the default branch.
+
+on:
+  workflow_dispatch:
+
+# Only one release may be in flight at a time. Don't allow cancellation, which
+# could lead to broken/abandoned artifacts.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish Dev Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # to attach the artifacts to the draft, create the tag, and publish it
+    steps:
+      # The tag is created at the commit the workflow runs on, so only the default branch may
+      # release.
+      - name: Refuse a branch other than the default branch
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "::error::Releases are made from '${DEFAULT_BRANCH}', but this run is on '${REF_NAME}'. Pick '${DEFAULT_BRANCH}' under 'Use workflow from'."
+            exit 1
+          fi
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Compute tag from model/manifest.yaml
+        id: tag
+        run: |
+          version=$(awk '/^schema_url:/ { n = split($2, parts, "/"); print parts[n]; exit }' model/manifest.yaml)
+          if [ -z "$version" ]; then
+            echo "::error::Could not parse a version from the schema_url in model/manifest.yaml."
+            exit 1
+          fi
+          case "$version" in
+            *-dev) ;;
+            *)
+              echo "::error::Version '${version}' is not a -dev version; this workflow only cuts dev-channel releases."
+              exit 1
+              ;;
+          esac
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "Tag: v${version}"
+
+      - name: Refuse if the git tag already exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # Only a confirmed "Not Found" means the tag is new. Any other failure is not an
+          # answer, so the release stops rather than risk publishing over an existing tag.
+          if response=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>&1); then
+            echo "::error::Tag '${TAG}' already exists. Tags are immutable; bump the version segment of schema_url in model/manifest.yaml and merge that first."
+            exit 1
+          fi
+          if [[ "$response" != *"(HTTP 404)"* ]]; then
+            echo "::error::Could not check whether tag '${TAG}' exists:"
+            echo "$response"
+            exit 1
+          fi
+          echo "Tag '${TAG}' is new."
+
+      - name: Find the draft release matching schema_url
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # "release not found" means there is no draft. Any other failure is not enough
+          # proof that there is no such release, so we don't proceed.
+          if ! is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>"${RUNNER_TEMP}/release-view.log"); then
+            if ! grep -qx "release not found" "${RUNNER_TEMP}/release-view.log"; then
+              echo "::error::Could not look up the release '${TAG}':"
+              cat "${RUNNER_TEMP}/release-view.log"
+              exit 1
+            fi
+            existing_drafts=$(gh release list --limit 20 --json tagName,isDraft \
+              --jq '[.[] | select(.isDraft) | .tagName] | join(", ")')
+            echo "::error::Expected a draft release tagged '${TAG}', derived from the schema_url in model/manifest.yaml."
+            if [ -n "$existing_drafts" ]; then
+              echo "Existing draft tags: ${existing_drafts}"
+              echo "Either retag the draft to '${TAG}', or update schema_url in model/manifest.yaml to match the draft."
+            else
+              echo "No draft releases exist. See RELEASING.md."
+            fi
+            exit 1
+          fi
+          if [ "$is_draft" != "true" ]; then
+            echo "::error::Release '${TAG}' is already published; refusing to re-release."
+            exit 1
+          fi
+          echo "Draft release '${TAG}' matches model/manifest.yaml."
+
+      - name: Read pinned weaver version
+        id: weaver
+        run: |
+          source versions.env
+          echo "version=$WEAVER_VERSION" >> "$GITHUB_OUTPUT"
+
+      # `$/` is GitHub's syntax for this repository's own actions, at the commit running.
+      - name: Install Weaver
+        uses: $/.github/actions/setup-weaver
+        with:
+          version: ${{ steps.weaver.outputs.version }}
+
+      # Nothing should be published that would not pass CI. The release runs from a
+      # dispatch, so it is not otherwise guaranteed to sit on a commit CI has seen.
+      - name: Validate registry
+        run: make check-policies
+
+      - name: Package publication artifacts
+        run: make package
+
+      - name: Upload artifacts to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            .build/package/manifest.yaml \
+            .build/package/resolved.yaml \
+            --clobber
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          gh release edit "$TAG" \
+            --draft=false \
+            --prerelease \
+            --target "$TARGET_SHA"
+          echo "Released ${TAG} at ${TARGET_SHA}"
